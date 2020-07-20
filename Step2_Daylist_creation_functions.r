@@ -25,10 +25,6 @@ library(data.table)
 library(parallel)
 library(fst)
 
-dframe <- readRDS(paste0(path,"OJVsample_step1_most_redux.rds"))
-
-setDT(dframe)
-
 
 #############################################################################
 ########## Daylist creation function* ---------------------
@@ -62,9 +58,11 @@ dayx <- function(x, data, days, dsave, dreturn) {
 #####Select Subsets of data for use with the function ---------------
 #########################################################################
 
+# using the fst package, load only the required columns
 # adjust depending on what you intend to analyse and how much memory is available
+# here is the bare minimum of variables necessary for calculating pseudostocks
 
-dframe <- subset(dframe, select = c(general_id, grab_date, expire_date, idcontract, idmacro_region, idregion, idprovince, source, site))
+dframe <- read_fst(paste0(path,"OJVsample_step1_redux.fst"), c("general_id", "grab_date", "expire_date" ), as.data.table = TRUE)
 
 
 #############################################################################
@@ -232,68 +230,4 @@ for (i in years) {
   j <- j+1
 }
 
-
-########################################################################################
-########## Daylists for occupation and industry -------------------------------
-#########################################################################
-
-dframe <- read_fst("OJVsample_step1_redux.fst", as.data.table = TRUE)
-
-esco1names <- unique(select(dframe,c(idesco_level_1, esco_level_1)))
-esco2names <- unique(select(dframe,c(idesco_level_2, esco_level_2)))
-esco3names <- unique(select(dframe,c(idesco_level_3, esco_level_3)))
-esco4names <- unique(select(dframe,c(idesco_level_4, esco_level_4)))
-
-saveRDS(esco1names, file = "esco1_id_name_table.rds")
-saveRDS(esco2names, file = "esco2_id_name_table.rds")
-saveRDS(esco3names, file = "esco3_id_name_table.rds")
-saveRDS(esco4names, file = "esco4_id_name_table.rds")
-
-dframe <- subset(dframe, select = c(general_id, grab_date, expire_date, idcontract, idmacro_region, idesco_level_4, idesco_level_3, idesco_level_2, idesco_level_1 ))
-
-
-dates <- unique(dframe$grab_date)
-years <- unique(year(dframe$grab_date))
-
-blocklist.start <- numeric()
-blocklist.end <- numeric()
-
-
-j <- 1
-for (i in years) {
-  
-  if (i == min(years)) {
-    blocklist.start[j] <- as.Date(min(dates)+months(1))
-  } else { 
-    
-    blocklist.start[j] <- as.Date(paste0(years[j],"-01-01"))
-  }
-  
-  if (i == max(years) ) {
-    blocklist.end[j] <- as.Date(max(dates))
-  } else {
-    
-    blocklist.end[j] <- as.Date(paste0(years[j],"-12-31"))
-  }
-  
-  j <- j+1
-  
-}
-
-j <- 1
-
-for (i in years) {
-  
-  dvec <- seq( as.Date(blocklist.start[j], origin = "1970-01-01"), as.Date(blocklist.end[j], origin = "1970-01-01") ,1 ) 
-  
-  daylist <- mclapply(dvec, dayx, 30, dsave=TRUE, dreturn = TRUE, data=dframe, mc.cores = 8)
-
-  names(daylist) <- dvec
-
-  saveRDS(daylist, file = paste0("daylist_step3_occupation_30d",i, ".rds"),  compress = TRUE)
-
-   rm(daylist)
-  j <- j+1
-
-}
 

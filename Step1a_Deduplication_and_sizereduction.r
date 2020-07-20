@@ -43,7 +43,27 @@ dframe <- read.fst("OJVsample_step1.fst", as.data.table = TRUE)
 
 setDT(dframe)
 
+#count and save the share of missings by variable (before deduplication)
+#this is done for data quality monitoring
+
+na_count <- sapply(dframe, function(x) sum(length(which(is.na(x)))))
+na_count <- as.data.frame(na_count)
+na_count$variable <- rownames(na_count)
+na_count$share <- round(na_count$na_count/nrow(dframe),2)
+
+write.xlsx(na_count, file = "Results/alldata_june20/na_byvar_before_dedup.xlsx", col.names = TRUE, append = FALSE )
+
 #remove observations already marked as duplicate by CEDEFOP
+#"duplicate" observations differ in their content
+#therefore we keep, from each duplicate group, the observation with the lowest number of missing variables
+
+dframe$na_count <- rowSums(is.na(dframe))
+
+dframe <- dframe %>% group_by(general_id) %>% arrange(na_count, .by_group = TRUE)
+setDT(dframe)
+
+dframe$dup <- ifelse(duplicated(dframe$general_id), 1, 0)
+
 dframe <- dframe[dup == 0]
 
 # filter staffing agencies ---------
@@ -102,37 +122,7 @@ dframe$companyname <- ordered
 
 dframe <- subset(dframe, contract!="Internship" | is.na(contract))
 
-# save the various subsamples to avoid loading the entire set each time
-
-save(dframe, file=paste0(path, "OJVsample_step1_redux.rdata" ), compress = TRUE)
-
+# by saving the data with the fst package, saving and loading is faster.
+# as an additional advantage, the fst package can selectively load only parts of the dataframe, for instance if only certain columns are needed for analysis
 write_fst(dframe, path = paste0(path,"OJVsample_step1_redux.fst"), compress = 100)
-
-savedata <- dframe
-
-dframe <- savedata[, c(1:3, 6, 7, 10:49, 51)]
-
-saveRDS(dframe, file=paste0(path,"OJVsample_step1_most_redux.rds"), compress = TRUE )
-
-
-# subset without occupation information
-
-dframe <- savedata[, c(1:3, 6, 7, 10, 19:49,51)]
-
-saveRDS(dframe, file=paste0(path,"OJVsample_step1_noocc_redux.rds"), compress = TRUE)
-
-
-#small subset without imputed classifications (no occupation, no education, no sector)
-
-dframe <- savedata[, c(1:3, 6, 7, 10, 19:30, 39:49, 51)]
-
-saveRDS(dframe, file=paste0(path,"OJVsample_step1_noimput_redux.rds"), compress = TRUE)
-
-
-# subset without geo information
-
-dframe <- savedata[, c(1:3, 6, 7, 10:18, 29:49, 51)]
-
-saveRDS(dframe, file=paste0(path,"OJVsample_step1_nogeo_redux.rds"), compress = TRUE)
-
 

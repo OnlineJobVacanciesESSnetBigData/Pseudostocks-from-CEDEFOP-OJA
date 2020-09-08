@@ -16,3 +16,5 @@ R code for calculating and plotting montly and quarterly pseudo-stocks of job ad
 
 ### Compare aggregates for 20, 30 and 40 days of validity 
 6. Step3_pseudostock_validity_comparison.r
+
+Both excel files are used as auxiliary input in Step 1
